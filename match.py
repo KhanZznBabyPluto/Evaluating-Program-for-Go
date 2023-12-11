@@ -64,12 +64,8 @@ class Match:
         # Take turns to play move
         while self.board.winner is None:
             if prev_legal_actions is not None:
-                last_liberties = self.find_last_liberties()
-                last_liberty_black = last_liberties.get('BLACK')
-                last_liberty_white = last_liberties.get('WHITE')
-                print(f"Last Liberty for BLACK: {last_liberty_black}")
-                print(f"Last Liberty for WHITE: {last_liberty_white}")
-
+                score = self.evaluate_board(prev_legal_actions, 'WHITE')
+                print(f'score: {score}')
 
             if self.board.next == 'BLACK':
                 point = self.perform_one_move(self.agent_black)
@@ -106,26 +102,59 @@ class Match:
             self.ui.save_image(path_file)
             print('Board image saved in file ' + path_file)
 
+
+    def evaluate_board(self, prev_legal_actions, agent_color):
+        """
+        Evaluate the current state of the board based on some heuristics.
+        :param prev_legal_actions: Previous legal actions before the last move.
+        :param agent_color: Color of the agent for which the evaluation is performed.
+        :return: A numeric value indicating the evaluation of the board.
+        """
+        # You can add more heuristics and adjust weights as needed
+        score = 0
+
+        # Find the last liberties of black and white groups
+        last_liberties = self.find_last_liberties()
+        last_liberty_black = last_liberties.get('BLACK')
+        last_liberty_white = last_liberties.get('WHITE')
+
+        # Heuristic 1: Encourage capturing opponent stones
+        captured_stones = len(prev_legal_actions) - len(self.board.legal_actions)
+        score += captured_stones
+
+        # Heuristic 2: Evaluate the efficiency of the last move
+        if agent_color == 'BLACK':
+            if last_liberty_black:
+                score += 1  # Adjust weight as needed
+        else:
+            if last_liberty_white:
+                score += 1  # Adjust weight as needed
+
+        # Heuristic 3: Discourage creating vulnerable groups
+        for group in self.board.groups[opponent_color(agent_color)]:
+            if len(group.liberties) == 1:
+                score -= 1
+
+        # Heuristic 4: Encourage expanding own groups
+        for group in self.board.groups[agent_color]:
+            score += len(group.liberties)
+
+        return score
+
     def find_last_liberties(self):
-        """Find the last liberties for BLACK and WHITE."""
-        last_liberties = {}
-        for color in ['BLACK', 'WHITE']:
-            groups = [group for group in self.board.groups if group.color == color]
-            for group in groups:
-                liberties = self.group_liberties(group)
-                if len(liberties) == 1:
-                    last_liberties[color] = liberties.pop()
+        """
+        Find the last liberties of black and white groups.
+        :return: A dictionary with 'BLACK' and 'WHITE' keys.
+        """
+        last_liberties = {'BLACK': set(), 'WHITE': set()}
+
+        for group in self.board.groups['BLACK']:
+            last_liberties['BLACK'].update(group.liberties)
+
+        for group in self.board.groups['WHITE']:
+            last_liberties['WHITE'].update(group.liberties)
+
         return last_liberties
-
-    def group_liberties(self, group):
-        """Find the liberties for a given group."""
-        liberties = set()
-        for stone in group:
-            liberties.update(self.board.get_adjacent_points(stone))
-        liberties -= set(group)  # Remove cells occupied by stones
-        return liberties
-
-
 
     def _start_without_ui(self):
         """Start the game without GUI. Only possible when no human is playing."""
