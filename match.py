@@ -52,8 +52,7 @@ class Match:
 
     def _start_with_ui(self):
         """Start the game with GUI."""
-        prev_legal_actions = None
-        prev_score = None
+        point = None
         self.ui.initialize()
         self.time_elapsed = time.time()
 
@@ -62,21 +61,25 @@ class Match:
         self.board.put_stone(first_move, check_legal=False)
         self.ui.draw(first_move, opponent_color(self.board.next))
 
-        # Take turns to play move
         while self.board.winner is None:
-            if prev_legal_actions is not None:
-                prev_score = self.evaluate_board(prev_legal_actions, 'WHITE')
-                print(f'score: {prev_score}')
+            if self.board.legal_actions is not None:
+                move_scores = {}
+                for action in self.board.legal_actions:
+                    temp_board = self.board.copy() 
+                    temp_board.put_stone(action, check_legal=False)
+                    move_scores[action] = self.evaluate_board(self.board.legal_actions, 'WHITE')
 
-            if self.board.next == 'BLACK':
-                point = self.perform_one_move(self.agent_black)
-            else:
-                point = self.perform_one_move(self.agent_white)
+                # Choose the move with the highest score
+                best_move = max(move_scores, key=move_scores.get)
+                print(f'Best move: {best_move}, Score: {move_scores[best_move]}')
 
-            # Check if action is legal
-            if point not in self.board.legal_actions:
-                continue
+                point_best = best_move
+            
+            point = self.perform_one_move(self.agent_black) if self.board.next == 'BLACK' else self.perform_one_move(self.agent_white)
 
+            if point_best is not None:
+                if point == point_best:
+                    print(f'You chose best. Point = Best Point = {point}')
             # Apply action
             prev_legal_actions = self.board.legal_actions.copy()
             self.board.put_stone(point, check_legal=False)
@@ -89,7 +92,6 @@ class Match:
             if self.board.winner:
                 for group in self.board.removed_groups:
                     for point in group.points:
-                        print(f'removed point: {point}')
                         self.ui.remove(point)
                 if self.board.end_by_no_legal_actions:
                     print('Game ends early (no legal action is available for %s)' % self.board.next)
