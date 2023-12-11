@@ -149,12 +149,15 @@ class Match:
         last_liberties = {'BLACK': set(), 'WHITE': set()}
 
         for group in self.board.groups['BLACK']:
+            # print(f'Black Group : {group}')
             last_liberties['BLACK'].update(group.liberties)
 
         for group in self.board.groups['WHITE']:
             last_liberties['WHITE'].update(group.liberties)
+            # print(f'White Group : {group}')
 
         return last_liberties
+
 
     def _start_without_ui(self):
         """Start the game without GUI. Only possible when no human is playing."""
