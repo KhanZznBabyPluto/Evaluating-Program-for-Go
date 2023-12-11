@@ -53,6 +53,7 @@ class Match:
     def _start_with_ui(self):
         """Start the game with GUI."""
         prev_legal_actions = None
+        prev_score = None
         self.ui.initialize()
         self.time_elapsed = time.time()
 
@@ -64,8 +65,8 @@ class Match:
         # Take turns to play move
         while self.board.winner is None:
             if prev_legal_actions is not None:
-                score = self.evaluate_board(prev_legal_actions, 'WHITE')
-                print(f'score: {score}')
+                prev_score = self.evaluate_board(prev_legal_actions, 'WHITE')
+                print(f'score: {prev_score}')
 
             if self.board.next == 'BLACK':
                 point = self.perform_one_move(self.agent_black)
@@ -133,10 +134,12 @@ class Match:
         # Heuristic 3: Discourage creating vulnerable groups
         for group in self.board.groups[opponent_color(agent_color)]:
             if len(group.liberties) == 1:
+                print('Vulnerable group')
                 score -= 1
 
         # Heuristic 4: Encourage expanding own groups
         for group in self.board.groups[agent_color]:
+            # print('Expanding my group')
             score += len(group.liberties)
 
         return score
