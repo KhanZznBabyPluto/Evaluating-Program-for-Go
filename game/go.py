@@ -60,6 +60,10 @@ class Group(object):
     def remove_liberty(self, point):
         self.liberties.remove(point)
 
+    def __deepcopy__(self, memo):
+        new_group = self.__class__(self.points, self.color, deepcopy(self.liberties, memo))
+        return new_group
+    
     def __str__(self):
         """Summarize color, stones, liberties."""
         return '%s - stones: [%s]; liberties: [%s]' % \

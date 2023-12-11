@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-from game.go import Board, opponent_color
-from game.ui import UI
-import pygame
 import time
-from agent.basic_agent import RandomAgent, GreedyAgent
-from agent.search.search_agent import AlphaBetaAgent, ExpectimaxAgent
-from agent.rl.rl_agent import ApproxQAgent
-from agent.rl.rl_env import RlEnv
+import pygame
+from game.ui import UI
+from game.go import Board, opponent_color
 from os.path import join
 from argparse import ArgumentParser
+from agent.basic_agent import RandomAgent, GreedyAgent
+from agent.search.search_agent import AlphaBetaAgent, ExpectimaxAgent
+from agent.rl.rl_env import RlEnv
+from agent.rl.rl_agent import ApproxQAgent
 
 
 class Match:
@@ -52,6 +52,7 @@ class Match:
 
     def _start_with_ui(self):
         """Start the game with GUI."""
+        prev_legal_actions = None
         self.ui.initialize()
         self.time_elapsed = time.time()
 
@@ -62,6 +63,14 @@ class Match:
 
         # Take turns to play move
         while self.board.winner is None:
+            if prev_legal_actions is not None:
+                last_liberties = self.find_last_liberties()
+                last_liberty_black = last_liberties.get('BLACK')
+                last_liberty_white = last_liberties.get('WHITE')
+                print(f"Last Liberty for BLACK: {last_liberty_black}")
+                print(f"Last Liberty for WHITE: {last_liberty_white}")
+
+
             if self.board.next == 'BLACK':
                 point = self.perform_one_move(self.agent_black)
             else:
@@ -83,6 +92,7 @@ class Match:
             if self.board.winner:
                 for group in self.board.removed_groups:
                     for point in group.points:
+                        print(f'removed point: {point}')
                         self.ui.remove(point)
                 if self.board.end_by_no_legal_actions:
                     print('Game ends early (no legal action is available for %s)' % self.board.next)
@@ -95,6 +105,27 @@ class Match:
             path_file = join(self.dir_save, 'go_' + str(time.time()) + '.jpg')
             self.ui.save_image(path_file)
             print('Board image saved in file ' + path_file)
+
+    def find_last_liberties(self):
+        """Find the last liberties for BLACK and WHITE."""
+        last_liberties = {}
+        for color in ['BLACK', 'WHITE']:
+            groups = [group for group in self.board.groups if group.color == color]
+            for group in groups:
+                liberties = self.group_liberties(group)
+                if len(liberties) == 1:
+                    last_liberties[color] = liberties.pop()
+        return last_liberties
+
+    def group_liberties(self, group):
+        """Find the liberties for a given group."""
+        liberties = set()
+        for stone in group:
+            liberties.update(self.board.get_adjacent_points(stone))
+        liberties -= set(group)  # Remove cells occupied by stones
+        return liberties
+
+
 
     def _start_without_ui(self):
         """Start the game without GUI. Only possible when no human is playing."""
