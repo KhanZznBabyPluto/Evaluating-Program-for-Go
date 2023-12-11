@@ -1,3 +1,10 @@
+IT IS NOT MY GAME. TOOK CODE FROM THIS REPOSITOTY:
+https://github.com/lxucs/go-game-easy
+
+I just write an evaluating program for it. In learning purposes.
+
+
+
 ## "Mini" Go Game with Classic AI Agents
 
 An "easier" version of Go game implemented in Python 3, with more constraints on legal moves, and simpler winning condition.
