@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import time
 import pygame
+import random
 from game.ui import UI
 from game.go import Board, opponent_color
 from os.path import join
@@ -52,12 +53,10 @@ class Match:
 
     def _start_with_ui(self):
         """Start the game with GUI."""
-        point = None
         self.ui.initialize()
         self.time_elapsed = time.time()
 
-        # First move is fixed on the center of board
-        first_move = (10, 10)
+        first_move = (random.randint(1, 20), random.randint(1, 20))
         self.board.put_stone(first_move, check_legal=False)
         self.ui.draw(first_move, opponent_color(self.board.next))
 
@@ -69,17 +68,19 @@ class Match:
                     temp_board.put_stone(action, check_legal=False)
                     move_scores[action] = self.evaluate_board(self.board.legal_actions, 'WHITE')
 
-                # Choose the move with the highest score
                 best_move = max(move_scores, key=move_scores.get)
-                print(f'Best move: {best_move}, Score: {move_scores[best_move]}')
-
                 point_best = best_move
+            
+                print(f'Best move: {best_move}, Score: {move_scores[best_move]}') if self.board.next == 'WHITE' else None
             
             point = self.perform_one_move(self.agent_black) if self.board.next == 'BLACK' else self.perform_one_move(self.agent_white)
 
-            if point_best is not None:
-                if point == point_best:
-                    print(f'You chose best. Point = Best Point = {point}')
+            if self.board.next == 'WHITE':
+                if point_best is not None:
+                    if point == point_best:
+                        print(f'You chose best move')
+                    else:
+                        print(f'Best move could be {point_best}')
             # Apply action
             prev_legal_actions = self.board.legal_actions.copy()
             self.board.put_stone(point, check_legal=False)
@@ -113,13 +114,13 @@ class Match:
         :param agent_color: Color of the agent for which the evaluation is performed.
         :return: A numeric value indicating the evaluation of the board.
         """
-        # You can add more heuristics and adjust weights as needed
         score = 0
 
         # Find the last liberties of black and white groups
         last_liberties = self.find_last_liberties()
         last_liberty_black = last_liberties.get('BLACK')
         last_liberty_white = last_liberties.get('WHITE')
+        print(last_liberty_black)
 
         # Heuristic 1: Encourage capturing opponent stones
         captured_stones = len(prev_legal_actions) - len(self.board.legal_actions)
@@ -154,12 +155,10 @@ class Match:
         last_liberties = {'BLACK': set(), 'WHITE': set()}
 
         for group in self.board.groups['BLACK']:
-            # print(f'Black Group : {group}')
             last_liberties['BLACK'].update(group.liberties)
 
         for group in self.board.groups['WHITE']:
             last_liberties['WHITE'].update(group.liberties)
-            # print(f'White Group : {group}')
 
         return last_liberties
 
