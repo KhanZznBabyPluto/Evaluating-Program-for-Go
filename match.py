@@ -3,13 +3,15 @@ import time
 import pygame
 import random
 from game.ui import UI
-from game.go import Board, opponent_color
+from game.go import Board, opponent_color, neighbors
 from os.path import join
 from argparse import ArgumentParser
 from agent.basic_agent import RandomAgent, GreedyAgent
 from agent.search.search_agent import AlphaBetaAgent, ExpectimaxAgent
 from agent.rl.rl_env import RlEnv
 from agent.rl.rl_agent import ApproxQAgent
+
+
 
 
 class Match:
@@ -56,23 +58,25 @@ class Match:
         self.ui.initialize()
         self.time_elapsed = time.time()
 
-        first_move = (random.randint(1, 20), random.randint(1, 20))
+        first_move = (random.randint(1, 19), random.randint(1, 19))
         self.board.put_stone(first_move, check_legal=False)
         self.ui.draw(first_move, opponent_color(self.board.next))
 
         while self.board.winner is None:
-            if self.board.legal_actions is not None:
+
+            if self.board.legal_actions is not None and self.board.next == 'WHITE':
                 move_scores = {}
                 for action in self.board.legal_actions:
                     temp_board = self.board.copy() 
                     temp_board.put_stone(action, check_legal=False)
-                    move_scores[action] = self.evaluate_board(self.board.legal_actions, 'WHITE')
+                    move_scores[action] = self.evaluate_board(action, 'WHITE')
 
                 best_move = max(move_scores, key=move_scores.get)
                 point_best = best_move
             
                 print(f'Best move: {best_move}, Score: {move_scores[best_move]}') if self.board.next == 'WHITE' else None
             
+
             point = self.perform_one_move(self.agent_black) if self.board.next == 'BLACK' else self.perform_one_move(self.agent_white)
 
             if self.board.next == 'WHITE':
@@ -81,6 +85,7 @@ class Match:
                         print(f'You chose best move')
                     else:
                         print(f'Best move could be {point_best}')
+
             # Apply action
             prev_legal_actions = self.board.legal_actions.copy()
             self.board.put_stone(point, check_legal=False)
@@ -107,44 +112,36 @@ class Match:
             print('Board image saved in file ' + path_file)
 
 
-    def evaluate_board(self, prev_legal_actions, agent_color):
-        """
-        Evaluate the current state of the board based on some heuristics.
-        :param prev_legal_actions: Previous legal actions before the last move.
-        :param agent_color: Color of the agent for which the evaluation is performed.
-        :return: A numeric value indicating the evaluation of the board.
-        """
+    def evaluate_board(self, point, agent_color):
         score = 0
+        
+        opponent = opponent_color(agent_color)
+        
+        # Приоритет 1 - закрыть уязвимую группу противника
+        opponent_endangered = self.find_last_liberties().get(opponent)
+        if opponent_endangered and point in opponent_endangered:
+            return 1000  
 
-        # Find the last liberties of black and white groups
-        last_liberties = self.find_last_liberties()
-        last_liberty_black = last_liberties.get('BLACK')
-        last_liberty_white = last_liberties.get('WHITE')
-        print(last_liberty_black)
+        # Приоритет 2 - защитить свою уязвимую группу    
+        my_endangered = self.find_last_liberties().get(agent_color)
+        if my_endangered and point in my_endangered:
+            return 500
+        
+        # Остальные случаи    
+        neighbors_point = neighbors(point)
+        neighbors_set = set(neighbors(point))
+        
+        # Приоритет ходам, занимающим 2+ поля
+        if len(neighbors_point) >= 2:
+            score += 5
 
-        # Heuristic 1: Encourage capturing opponent stones
-        captured_stones = len(prev_legal_actions) - len(self.board.legal_actions)
-        score += captured_stones
-
-        # Heuristic 2: Evaluate the efficiency of the last move
-        if agent_color == 'BLACK':
-            if last_liberty_black:
-                score += 1  # Adjust weight as needed
-        else:
-            if last_liberty_white:
-                score += 1  # Adjust weight as needed
-
-        # Heuristic 3: Discourage creating vulnerable groups
-        for group in self.board.groups[opponent_color(agent_color)]:
-            if len(group.liberties) == 1:
-                print('Vulnerable group')
-                score -= 1
-
-        # Heuristic 4: Encourage expanding own groups
-        for group in self.board.groups[agent_color]:
-            # print('Expanding my group')
-            score += len(group.liberties)
-
+        # Приоритет ходам, расширяющим свои группы
+        my_groups = self.board.groups[agent_color]
+        for group in my_groups:
+            group_stones_set = set(group.points)
+            if neighbors_set.intersection(group_stones_set):
+                score += 3
+        
         return score
 
     def find_last_liberties(self):
@@ -155,10 +152,12 @@ class Match:
         last_liberties = {'BLACK': set(), 'WHITE': set()}
 
         for group in self.board.groups['BLACK']:
-            last_liberties['BLACK'].update(group.liberties)
+            if len(group.liberties) == 1:
+                last_liberties['BLACK'].update(group.liberties)
 
         for group in self.board.groups['WHITE']:
-            last_liberties['WHITE'].update(group.liberties)
+            if len(group.liberties) == 1:
+                last_liberties['WHITE'].update(group.liberties)
 
         return last_liberties
 
@@ -227,6 +226,7 @@ def get_args():
     parser.add_argument('-s', '--dir_save', default=None,
                         help='if not None, save the image of last board state to this directory; DEFAULT is None')
     return parser.parse_args()
+
 
 
 def get_agent(str_agent, color, depth):
